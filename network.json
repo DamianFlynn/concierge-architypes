@@ -1,0 +1,103 @@
+{
+  "structureVersion": "3.9.1",
+  "containerVersion": "3.0.10",
+  "replaceStrings": {
+    "[#_service.environment_#]": "[#_service.environment_#]",
+    "[#_service.name_#]": "[#_service.name_#]",
+    "[#_service.subscription.id_#]": "[#_service.subscription.id_#]",
+    "[#_service.vnet.addressPrefix_#]": "10.0.0.0/25",
+    "[#_service.vnet.PeFrontendSubnet.addressPrefix_#]": "10.0.0.0/27",
+    "[#_service.vnet.ScalableSubnet.addressPrefix_#]": "10.0.0.32/27"
+  },
+  "namingStandard": {
+    "subscriptions": "[{environment}-]{service}",
+    "resourceGroups": "{environment}-{service}-[{role}]"
+  },
+  "tenants": [
+    {
+      "tenantId": "",
+      "subscriptions": [
+        {
+          "subscriptionId": "[#_service.subscription.id_#]",
+          "deployments": [
+            {
+              "configId": "res.arm.network.resourcegroup",
+              "resourceType": "Microsoft.Resources/resourceGroups",
+              "resourceApiVersion": "2022-09-01",
+              "resourceGroup": "[#_service.environment_#]-[#_service.name_#]-network",
+              "parameters": {
+                "location": "westeurope",
+                "tags": {
+                  "Environment": "[#_service.environment_#]",
+                  "Service": "[#_service.name_#]",
+                  "ManagedBy": "Innofactor"
+                }
+              }
+            },
+            {
+              "configId": "res.arm.network.nsg.PeFrontendSubnet",
+              "resourceType": "Microsoft.Network/networkSecurityGroups",
+              "resourceApiVersion": "2023-09-01",
+              "resourceGroup": "[#_service.environment_#]-[#_service.name_#]-network",
+              "dependActions": [],
+              "parameters": {
+                "name": "[#_service.environment_#]-[#_service.name_#]-network-PeFrontendSubnet-nsg",
+                "location": "westeurope",
+                "securityRules": []
+              }
+            },
+            {
+              "configId": "res.arm.network.vnet",
+              "resourceType": "Microsoft.Network/virtualNetworks",
+              "resourceApiVersion": "2023-09-01",
+              "resourceGroup": "[#_service.environment_#]-[#_service.name_#]-network",
+              "dependActions": [
+                {
+                  "configId": "res.arm.network.nsg.PeFrontendSubnet",
+                  "replace": [
+                    {
+                      "searchString": "[@_res.arm.network.nsg.PeFrontendSubnet.id_@]",
+                      "replaceValue": "id"
+                    }
+                  ]
+                }
+              ],
+              "parameters": {
+                "name": "[#_service.environment_#]-[#_service.name_#]-network-vnet",
+                "location": "westeurope",
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[#_service.vnet.addressPrefix_#]"
+                  ]
+                },
+                "dnsServers": [],
+                "subnets": [
+                  {
+                    "name": "PeFrontendSubnet",
+                    "addressPrefix": "[#_service.vnet.PeFrontendSubnet.addressPrefix_#]",
+                    "networkSecurityGroup": {
+                      "id": "[@_res.arm.network.nsg.PeFrontendSubnet.id_@]"
+                    },
+                    "privateEndpointNetworkPolicies": "Disabled"
+                  },
+                  {
+                    "name": "ScalableSubnet",
+                    "addressPrefix": "[#_service.vnet.ScalableSubnet.addressPrefix_#]",
+                    "delegations": [
+                      {
+                        "name": "Microsoft.App.environments",
+                        "properties": {
+                          "serviceName": "Microsoft.App/environments"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
